@@ -68,7 +68,7 @@ end
 	# Returns
 	- `S_save::Array{Float64, 3}`: Array of walker positions.
 """
-function sample_ESS(rng::Random.AbstractRNG, logdens::Function, walkers::AbstractMatrix{<:Float64}, N_iter::Int64, n_walkers::Int64, ndim::Int64, M_adapt::Int64 = 100, max_steps::Int64 = 10^4, μ = 1.0)
+function sample_ESS(rng::Random.AbstractRNG, logdens::Function, walkers::AbstractMatrix{<:Float64}, N_iter::Int64, n_walkers::Int64, ndim::Int64, M_adapt::Int64 = 50, max_steps::Int64 = 10^4, μ = 1.0)
 
 	# walkers is of size
 
@@ -236,7 +236,6 @@ end
 ### Application to the 8 schools problem
 using Plots, Turing, StatsPlots
 
-rng = MersenneTwister(1234)
 
 n_schools = 8
 y = [28.0, 8.0, -3.0, 7.0, -1.0, 1.0, 18.0, 12.0] # estimated treatment effects
@@ -253,6 +252,8 @@ end
 
 logd(X::AbstractVector{Float64}) = (logjoint(school_reparam(y, σ), (μ = X[1], τ = X[2], θ = X[3:10])))
 
+rng = MersenneTwister(43)
+
 sample_dict = rand(rng, OrderedDict, school_reparam(y, σ)).vals
 flatten(w) = mapreduce(x -> x, vcat, w)
 sample_dict = flatten(sample_dict);
@@ -262,7 +263,10 @@ n_walkers = 50
 init_values = [flatten(rand(rng, OrderedDict, school_reparam(y, σ)).vals) for i in 1:n_walkers]
 init_values = hcat(init_values...)
 
-c = sample_ESS(rng, logd, S, 20_000, n_walkers, n_dims)
+
+
+
+c = sample_ESS(rng, logd, init_values, 20_000, n_walkers, n_dims)
 
 # using Profile
 # @profview sample_ESS(rng, logd, S, 20_0, n_walkers, n_dims)

@@ -437,9 +437,9 @@ spl = EnSS(50)
 rng = Random.MersenneTwister(0)
 using Profile
 
-chain = sample(rng,mymod, spl, 200,progress=true)
+chain = sample(rng,mymod, spl, 20_000,progress=true)
 
 using StatsPlots
 chain[100:end,:,:]
-plot(chain[100:end,:,:])
-@profview chain = sample(rng,mymod, spl, 2_000,progress=true)
+#plot(chain[100:end,:,:])
+@profview chain = sample(rng,mymod, spl, 2_00,progress=true)
