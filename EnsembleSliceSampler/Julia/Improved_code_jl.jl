@@ -74,33 +74,38 @@ function sample_ESS(rng::Random.AbstractRNG, logdens::Function, walkers::Abstrac
 
 	# num of walkers divided by 2
 	n_wdiv2 = div(n_walkers, 2)
+	T =eltype(walkers[:,1])
 
 	logdensities = [logdens(walkers[:, i]) for i in 1:n_walkers]
 
-	# Randomly shuffle the walkers
-	walker_indexes = randperm(rng, n_walkers)
-	# get the first half of the shuffled walkers
-
-	wl_ind = 1:n_wdiv2
-
-	subset_a = @view walker_indexes[wl_ind]
-	# get the second half of the shuffled walkers
-	subset_b = @view walker_indexes[n_wdiv2+1:end]
-	# get the two subsets
-	sets = [[subset_a, subset_b], [subset_b, subset_a]]
 
 	S_save = Array{Float64}(undef, ndim, n_walkers, N_iter)
 	# initialise the log densities for the left and right stepping points
 
 	@inbounds begin
-		@showprogress for t in 1:N_iter
-			R, L, N_e, N_c = 0, 0, 0, 0
-			logdensities_left, logdensities_right = Vector{Float64}(undef, n_wdiv2), Vector{Float64}(undef, n_wdiv2)
-			position_left, position_right = Matrix{Float64}(undef, ndim, n_wdiv2), Matrix{Float64}(undef, ndim, n_wdiv2)
 
-			Widths = Vector{Float64}(undef, n_wdiv2)
-			logdensities_shrink = Vector{Float64}(undef, n_wdiv2)
-			positions_shrink = Matrix{Float64}(undef, ndim, n_wdiv2)
+		@showprogress for t in 1:N_iter
+			# Randomly shuffle the walkers
+			walker_indexes = randperm(rng, n_walkers)
+			# get the first half of the shuffled walkers
+
+			wl_ind = 1:n_wdiv2
+
+			subset_a = @view walker_indexes[wl_ind]
+			# get the second half of the shuffled walkers
+			subset_b = @view walker_indexes[n_wdiv2+1:end]
+			# get the two subsets
+			sets = [[subset_a, subset_b], [subset_b, subset_a]]
+			R, L, N_e, N_c = 0, 0, 0, 0
+
+			Widths = Vector{T}(undef, n_wdiv2)
+
+			logdensities_shrink = Vector{T}(undef, n_wdiv2)
+			positions_shrink = Matrix{T}(undef, ndim, n_wdiv2)
+			# initialise the log densities for the left and right stepping points
+			logdensities_left, logdensities_right = Vector{T}(undef, n_wdiv2), Vector{T}(undef, n_wdiv2)
+			position_left, position_right = Matrix{T}(undef, ndim, n_wdiv2), Matrix{T}(undef, ndim, n_wdiv2)
+
 			# loop over the walkers
 			for set in sets
 				active, inactive = set
@@ -165,8 +170,8 @@ function sample_ESS(rng::Random.AbstractRNG, logdens::Function, walkers::Abstrac
 						logdensities_right[mask_right] = []
 						l -= 1
 					else
-						nl = size(position_left[:, mask_left], 2)
-						nr = size(position_right[:, mask_right], 2)
+						nl = size(view(position_left, :, mask_left), 2)
+						nr = size(view(position_right, :, mask_right), 2)
 						logdensities_left[mask_left] = [logdens(view(view(position_left, :, mask_left), :, i)) for i in 1:nl]
 						logdensities_right[mask_right] = [logdens(view(view(position_right, :, mask_right), :, i)) for i in 1:nr]
 					end
@@ -190,13 +195,13 @@ function sample_ESS(rng::Random.AbstractRNG, logdens::Function, walkers::Abstrac
 					end
 				end
 
-
 				## shrink the interval##
 				mask = fill(true, n_wdiv2)
 				l = 0
 				while size(mask[mask], 1) > 0
 
 					Widths[mask] = rand(rng, Uniform(), size(mask[mask])) .* (view(R, mask) - view(L, mask)) .+ view(L, mask)
+
 
 					positions_shrink[:, mask] = view(Widths, mask)' .* view(η, :, mask) + view(view(walkers, :, active), :, mask)
 					logdensities_shrink[mask] = [logdens(view(view(positions_shrink, :, mask), :, i)) for i in 1:size(view(positions_shrink, :, mask), 2)]
@@ -219,6 +224,7 @@ function sample_ESS(rng::Random.AbstractRNG, logdens::Function, walkers::Abstrac
 						error("Max steps reached in shrink")
 					end
 				end
+
 
 				# update the walker
 				walkers[:, active] = positions_shrink
